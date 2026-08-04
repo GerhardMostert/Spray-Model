@@ -1,0 +1,1892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spray Drift Model — Aerial Herbicide Application</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Saira+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SPRAY DRIFT MODEL — aviation blue & white
+   Aeronautical chart paper, instrument-panel readouts.
+   Colour is meaning: blue = aircraft and controls,
+   amber = spray and caution, red = the claim, green = finding.
+   ============================================================ */
+:root{
+  --paper:     #E9F0F8;   /* chart paper */
+  --bg:        #E9F0F8;
+  --card:      #FFFFFF;
+  --card-2:    #F5F9FD;
+  --ink:       #062A4E;   /* beacon navy */
+  --ink-2:     #3B5F86;
+  --ink-3:     #5A7893;
+  --rule:      #DDE8F3;
+  --rule-2:    #C0D3E6;
+
+  --blue:      #0B63C5;   /* flight blue — primary control accent */
+  --blue-dk:   #084A97;
+  --blue-bg:   #E8F1FC;
+  --panel:     #08315A;   /* instrument panel */
+  --panel-2:   #124873;   /* panel dividers */
+  --panel-k:   #8FB3D4;   /* panel labels */
+
+  --crop:      #D5E5F4;   /* treated field */
+  --crop-2:    #F1F7FC;   /* neighbour field */
+  --spray:     #E08A0B;   /* caution amber — drift */
+  --spray-2:   #F2B44A;
+  --spray-dk:  #A4620A;
+  --spray-bg:  #FDF3E2;
+  --stain:     #114E77;
+  --alert:     #C5322A;
+  --alert-2:   #FF7062;   /* warning red on navy */
+  --alert-bg:  #FBEDEC;
+  --green:     #16704F;
+  --green-bg:  #E9F4EF;
+
+  --fd: 'Saira Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --fb: 'B612', system-ui, -apple-system, sans-serif;
+  --fm: 'B612 Mono', ui-monospace, 'Courier New', monospace;
+}
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--fb); font-size:15px; line-height:1.6;
+  background-image:
+    linear-gradient(rgba(11,99,197,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11,99,197,.055) 1px, transparent 1px);
+  background-size:56px 56px;
+  background-position:-1px -1px;
+}
+/* aircraft cheatline across the top of the page */
+body::before{
+  content:''; position:fixed; inset:0 0 auto 0; height:6px; z-index:60;
+  background:linear-gradient(180deg,
+    var(--ink) 0 3px, var(--blue) 3px 5px, var(--spray) 5px 6px);
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 20px 80px;}
+::selection{background:var(--blue); color:#fff;}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+
+/* ---------- type ---------- */
+h1,h2,h3{font-family:var(--fd); font-weight:700; margin:0; color:var(--ink);}
+h1{font-size:clamp(36px,6.4vw,70px); line-height:.95; text-transform:uppercase; letter-spacing:-.005em;}
+h2{font-size:clamp(22px,3vw,32px); text-transform:uppercase; letter-spacing:.02em;}
+h3{font-size:19px; text-transform:uppercase; letter-spacing:.04em;}
+.eyebrow{
+  font-family:var(--fm); font-size:11px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--blue);
+}
+.lede{font-size:17px; color:var(--ink-2); max-width:62ch;}
+.mono{font-family:var(--fm);}
+
+/* ---------- header ---------- */
+header{padding:52px 0 30px;}
+.title-rule{
+  display:flex; align-items:baseline; gap:14px; margin:16px 0 20px;
+  border-bottom:3px solid var(--ink); padding-bottom:18px; position:relative;
+}
+.title-rule::after{
+  content:''; position:absolute; left:0; right:0; bottom:-8px;
+  height:2px; background:repeating-linear-gradient(90deg,
+    var(--blue) 0 22px, transparent 22px 34px);
+}
+header .lede{margin-top:26px;}
+
+/* ---------- section shell ---------- */
+section{padding:44px 0; border-bottom:1px solid var(--rule-2);}
+.sec-head{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  margin-bottom:10px; padding-bottom:10px; border-bottom:2px solid var(--ink);
+}
+.sec-head h2{line-height:1;}
+.sec-head .tag{
+  font-family:var(--fm); font-size:10px; letter-spacing:.14em;
+  color:var(--blue-dk); text-transform:uppercase;
+  background:var(--blue-bg); border:1px solid #CBE0F8;
+  padding:4px 9px; border-radius:2px;
+}
+.sec-note{color:var(--ink-2); max-width:72ch; margin:14px 0 24px;}
+
+/* ---------- plan canvas ---------- */
+.plan-shell{
+  position:relative; border:1px solid var(--ink); background:var(--card);
+  border-radius:2px; overflow:hidden; box-shadow:0 2px 6px rgba(6,42,78,.09);
+}
+.plan-shell canvas{display:block; width:100%; height:auto;}
+.plan-badge{
+  position:absolute; top:12px; left:12px;
+  font-family:var(--fm); font-size:10px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:#fff;
+  background:rgba(8,49,90,.92); border:1px solid rgba(255,255,255,.25);
+  padding:6px 10px; border-radius:2px; pointer-events:none;
+}
+.playbar{
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  padding:11px 12px; border-top:1px solid var(--rule-2); background:var(--card-2);
+}
+
+/* ---------- controls ---------- */
+.cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:26px;}
+@media (max-width:860px){ .cols{grid-template-columns:1fr;} }
+
+.panel{
+  background:var(--card); border:1px solid var(--rule-2); border-radius:2px;
+  padding:20px; margin-bottom:20px; box-shadow:0 1px 3px rgba(6,42,78,.06);
+}
+.panel-title{
+  font-family:var(--fm); font-size:10px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink); margin:0 0 16px;
+  padding-bottom:9px; border-bottom:1px solid var(--rule);
+  display:flex; align-items:center; gap:8px;
+}
+.panel-title::before{
+  content:''; width:9px; height:9px; flex:0 0 9px;
+  background:var(--blue); border-radius:1px;
+}
+.field{margin-bottom:18px;}
+.field:last-child{margin-bottom:0;}
+.field label{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  font-size:13.5px; color:var(--ink-2); margin-bottom:8px;
+}
+.field .val{
+  font-family:var(--fm); font-size:12.5px; font-weight:700; color:var(--ink);
+  background:var(--blue-bg); border:1px solid #CBE0F8;
+  padding:2px 8px; border-radius:2px; white-space:nowrap;
+}
+.hint{font-size:12px; color:var(--ink-3); margin:8px 0 0; line-height:1.5;}
+
+input[type=range]{
+  -webkit-appearance:none; appearance:none; width:100%; height:22px;
+  background:transparent; cursor:pointer; margin:0;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:4px; background:var(--rule-2); border-radius:2px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:18px; height:18px; margin-top:-7px;
+  border-radius:50%; background:var(--blue); border:3px solid var(--card);
+  box-shadow:0 1px 3px rgba(6,42,78,.4);
+}
+input[type=range]::-moz-range-track{height:4px; background:var(--rule-2); border-radius:2px;}
+input[type=range]::-moz-range-thumb{
+  width:15px; height:15px; border-radius:50%; background:var(--blue);
+  border:3px solid var(--card); box-shadow:0 1px 3px rgba(6,42,78,.4);
+}
+
+select,input[type=number]{
+  width:100%; padding:9px 10px; font-family:var(--fb); font-size:14px;
+  background:var(--card-2); color:var(--ink);
+  border:1px solid var(--rule-2); border-radius:2px;
+}
+input[type=number]:focus,select:focus{
+  outline:2px solid rgba(11,99,197,.25); border-color:var(--blue);
+}
+.mode-row{display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:end;}
+@media(max-width:520px){.mode-row{grid-template-columns:1fr;}}
+
+.claim-summary{
+  margin-top:18px; background:var(--card); padding:18px 20px; border-radius:2px;
+  border:1px solid var(--rule-2); border-left:4px solid var(--alert);
+}
+.claim-summary .headline{
+  font-family:var(--fd); font-size:27px; font-weight:700;
+  text-transform:uppercase; line-height:1.05; margin-top:6px;
+}
+.claim-summary .equation{font-family:var(--fm); font-size:12.5px; margin-top:10px; color:var(--ink-2);}
+.claim-summary strong{color:var(--alert);}
+
+.btn{
+  font-family:var(--fm); font-size:10.5px; font-weight:700; letter-spacing:.12em;
+  text-transform:uppercase; padding:9px 14px;
+  background:var(--card); color:var(--ink-2);
+  border:1px solid var(--rule-2); border-radius:2px; cursor:pointer;
+  transition:background .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn:hover{border-color:var(--blue); color:var(--ink);}
+.btn.on{background:var(--blue); border-color:var(--blue); color:#fff;}
+.btn.alert.on{background:var(--alert); border-color:var(--alert); color:#fff;}
+.presets{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+
+/* ---------- wind rose ---------- */
+.rose-row{display:flex; gap:22px; align-items:center; flex-wrap:wrap;}
+.rose{width:178px; height:178px; flex:0 0 178px; cursor:grab; touch-action:none;}
+.rose:active{cursor:grabbing;}
+.rose-read .big{
+  font-family:var(--fd); font-size:46px; font-weight:700; line-height:1; color:var(--ink);
+}
+.rose-read .sub{font-size:13px; color:var(--ink-2);}
+
+/* ---------- readout — instrument panel ---------- */
+.readout{
+  display:grid; grid-template-columns:1fr 1fr; gap:1px;
+  background:var(--panel-2); border:1px solid var(--panel);
+  border-radius:2px; overflow:hidden;
+  box-shadow:0 2px 8px rgba(6,42,78,.18);
+}
+.readout .cell{background:var(--panel); padding:18px 18px 16px;}
+.readout .cell.hero,.readout .cell.claim{background:var(--panel);}
+.readout .k{
+  font-family:var(--fm); font-size:9.5px; font-weight:700; letter-spacing:.15em;
+  text-transform:uppercase; color:var(--panel-k); display:block; margin-bottom:8px;
+}
+.readout .v{
+  font-family:var(--fd); font-size:40px; font-weight:700; line-height:1;
+  color:#FFFFFF; font-variant-numeric:tabular-nums;
+}
+.readout .cell.hero .v{color:var(--spray-2);}
+.readout .cell.claim .v{color:var(--alert-2);}
+.readout .v small{font-size:15px; font-weight:600; color:var(--panel-k); margin-left:2px;}
+
+.compare{
+  margin-top:16px; border:1px solid var(--rule-2); border-radius:2px;
+  background:var(--card); overflow:hidden;
+}
+.compare .line{
+  display:flex; justify-content:space-between; gap:12px;
+  padding:9px 16px; font-size:13px; color:var(--ink-2);
+  border-bottom:1px solid var(--rule);
+}
+.compare .line:nth-child(even){background:var(--card-2);}
+.compare .line:last-child{border-bottom:0;}
+.compare .line span:last-child{font-family:var(--fm); font-weight:700; color:var(--ink);}
+.compare .line.alert{background:var(--alert-bg);}
+.compare .line.alert span:last-child{color:var(--alert);}
+
+/* ---------- verdict ---------- */
+.verdict{
+  border:1px solid var(--rule-2); border-left:5px solid var(--green);
+  border-radius:2px; background:var(--green-bg);
+  padding:24px 26px; margin-top:8px;
+}
+.verdict .vh{
+  font-family:var(--fd); font-size:clamp(23px,3.4vw,34px); font-weight:700;
+  text-transform:uppercase; color:var(--green); line-height:1.05; margin-bottom:12px;
+}
+.verdict p{margin:0 0 10px; color:var(--ink-2);}
+.verdict p:last-child{margin-bottom:0;}
+.verdict strong{color:var(--ink);}
+.verdict.warn{border-left-color:var(--alert); background:var(--alert-bg);}
+.verdict.warn .vh{color:var(--alert);}
+.vgrid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px; margin-top:20px;
+}
+.vgrid div{
+  background:var(--card); border:1px solid var(--rule-2);
+  border-top:3px solid var(--blue); border-radius:2px; padding:12px 14px;
+}
+.vgrid .k{font-family:var(--fm); font-size:9.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);}
+.vgrid .v{font-family:var(--fd); font-size:28px; font-weight:700; line-height:1.15; margin-top:4px;}
+
+/* ---------- chart ---------- */
+.chart-shell{
+  background:var(--card); border:1px solid var(--rule-2); border-radius:2px;
+  padding:18px 12px 12px; box-shadow:0 1px 3px rgba(6,42,78,.06);
+}
+.chart-shell canvas{display:block; width:100%; height:auto;}
+.stain-cap{
+  font-family:var(--fm); font-size:9.5px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink-3); margin:0 0 8px 62px;
+}
+.legend{
+  display:flex; gap:20px; flex-wrap:wrap; margin-top:12px; padding-left:62px;
+  font-family:var(--fm); font-size:10.5px; letter-spacing:.05em; color:var(--ink-2);
+}
+.legend i{display:inline-block; width:11px; height:11px; margin-right:7px; vertical-align:-1px; border-radius:1px;}
+
+/* ---------- table ---------- */
+table{width:100%; border-collapse:collapse; font-size:14px;}
+td{padding:9px 0; border-bottom:1px solid var(--rule); vertical-align:top;}
+tr:last-child td{border-bottom:0;}
+td:first-child{color:var(--ink-3); width:52%; padding-right:14px;}
+td:last-child{font-family:var(--fm); font-weight:700; text-align:right; color:var(--ink);}
+
+/* ---------- explainers ---------- */
+.explain{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px;}
+.explain > div{
+  background:var(--card); border:1px solid var(--rule-2); border-top:3px solid var(--blue);
+  border-radius:2px; padding:20px 22px; box-shadow:0 1px 3px rgba(6,42,78,.06);
+}
+.explain h3{margin-bottom:10px; color:var(--ink);}
+.explain p{margin:0 0 10px; color:var(--ink-2); font-size:14px;}
+.explain p:last-child{margin-bottom:0;}
+.explain .num{
+  font-family:var(--fm); font-size:10px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--blue); display:block; margin-bottom:9px;
+}
+.keytab{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
+.keytab th{
+  font-family:var(--fm); font-size:9.5px; font-weight:700; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-3); text-align:left;
+  padding:6px 8px 8px 0; border-bottom:1px solid var(--rule-2);
+}
+.keytab td{padding:7px 8px 7px 0; text-align:left; font-family:var(--fb); color:var(--ink-2); width:auto; border-bottom:1px solid var(--rule);}
+.keytab td.n{font-family:var(--fm); color:var(--ink); text-align:right; padding-right:0;}
+
+/* ---------- limits ---------- */
+.limits{
+  background:var(--spray-bg); border:1px solid #F0DDBB; border-left:5px solid var(--spray);
+  border-radius:2px; padding:22px 24px;
+}
+.limits h3{color:var(--spray-dk); margin-bottom:12px;}
+.limits ul{margin:0; padding-left:20px; color:var(--ink-2); font-size:14px;}
+.limits li{margin-bottom:9px;}
+.limits li:last-child{margin-bottom:0;}
+
+.model-hidden{display:none!important;}
+
+footer{
+  padding:34px 0 0; font-family:var(--fm); font-size:10px; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important; animation:none!important;}
+}
+
+@media print{
+  body{background:#fff;}
+  body::before{display:none;}
+  .playbar,.presets{display:none;}
+  section{break-inside:avoid;}
+  .readout{box-shadow:none;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ============ HEADER ============ -->
+<header class="model-hidden">
+  <div class="eyebrow">Aerial application · herbicide drift study</div>
+  <div class="title-rule">
+    <h1>How far does<br>the spray<br>actually go?</h1>
+  </div>
+  <p class="lede">
+    An aircraft lays down a 24 m swath from about 3 m above the crop. Wind moves the small
+    droplets sideways while they fall. This page models where that spray lands — and shows how
+    quickly the amount landing collapses once it crosses the fence.
+  </p>
+</header>
+
+<!-- ============ HOW SPRAYING WORKS ============ -->
+<section class="model-hidden">
+  <div class="sec-head"><h2>How crop spraying works</h2><span class="tag">Read this first</span></div>
+  <p class="sec-note">
+    Before the numbers make sense, it helps to know what the aeroplane is actually doing and what
+    the pilot controls. Six things decide where the spray ends up: height, swath, nozzle type,
+    boom pressure, airspeed and wind.
+  </p>
+
+  <div class="explain">
+    <div>
+      <span class="num">01 — The job</span>
+      <h3>Parallel passes</h3>
+      <p>The aircraft flies straight passes back and forth across the field a few metres above the
+      crop, releasing spray from a boom under the wings. Each pass treats a band called the
+      <strong>swath</strong> — for a light ag aircraft that is usually 18–24 m wide. The passes are
+      spaced so they just meet, using a GPS lightbar or autopilot.</p>
+      <p>A 100 ha field at a 24 m swath is roughly 42 km of flying, in about forty passes.</p>
+    </div>
+
+    <div>
+      <span class="num">02 — Height</span>
+      <h3>Why 3 m matters</h3>
+      <p>Height above the crop is the single biggest thing the pilot controls. Everything released
+      has to fall that distance before it lands, and the whole time it is falling the wind is
+      pushing it sideways.</p>
+      <p>Fly at 3 m instead of 6 m and every droplet spends half as long in the air, so it travels
+      roughly half as far sideways. Flying low is not bravado — it is the main drift control.</p>
+    </div>
+
+    <div>
+      <span class="num">03 — Nozzles</span>
+      <h3>CP-11TT and pressure</h3>
+      <p>The CP-11TT is a flat-fan nozzle with a selectable deflector plate. Three settings decide
+      droplet size: the orifice, the <strong>boom pressure in psi</strong>, and the
+      <strong>deflection angle</strong> (5°, 10°, 15°, 30°). Airspeed matters too — faster air
+      shears the sheet into finer droplets.</p>
+      <p>More pressure means finer droplets and more drift. A bigger deflection angle means finer
+      droplets and more drift. At 5° and 60 psi at around 130 mph, a CP-11TT sits in the
+      <strong>Very Coarse</strong> band — roughly 400–450 µm.</p>
+    </div>
+
+    <div>
+      <span class="num">04 — Droplet size</span>
+      <h3>The whole argument</h3>
+      <p>Drift is a droplet-size question and nothing else. A 400 µm droplet falls at about
+      1.6 m/s, so from 3 m it lands in under two seconds. A 100 µm droplet falls at about
+      0.25 m/s and takes twelve. Same wind, five times the sideways travel.</p>
+      <p>And volume goes with the cube of diameter: one 400 µm droplet carries as much chemical as
+      64 droplets of 100 µm. That is why the fine fraction, which travels furthest, carries so
+      little of the load.</p>
+    </div>
+
+    <div>
+      <span class="num">05 — Weather window</span>
+      <h3>Wind and Delta T</h3>
+      <p>The working window is a steady <strong>5–15 km/h</strong> across the swath, blowing in a
+      known direction. Dead calm is worse than a light breeze, because dead calm usually means a
+      temperature inversion, and an inversion holds the fine fraction in a layer that can drift a
+      long way intact.</p>
+      <p><strong>Delta T</strong> (dry bulb minus wet bulb) should sit between about 2 and 8. Above
+      10 the droplets shrink fast in flight and start behaving like much smaller droplets than the
+      ones that left the nozzle.</p>
+    </div>
+
+    <div>
+      <span class="num">06 — What drift is</span>
+      <h3>Swath is not drift</h3>
+      <p>The swath is the band you are deliberately treating. <strong>Drift is only the fraction
+      light enough to still be airborne when it leaves that band.</strong> With a Very Coarse
+      setting that is a couple of percent of the tank, not the load.</p>
+      <p>If the last pass is flown with its edge right on the fence, then a crosswind pushes part
+      of the actual swath over the line. That is placement, not drift — and it is why a half-swath
+      buffer on a boundary pass changes the outcome so much.</p>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:24px;">
+    <p class="panel-title">Droplet size classes — ASABE S572.1, approximate VMD boundaries</p>
+    <table class="keytab">
+      <tr><th>Class</th><th>VMD</th><th style="text-align:right;">Typical behaviour off a boundary pass</th></tr>
+      <tr><td>Fine</td><td class="n" style="text-align:left;">up to ~177 µm</td><td class="n">travels furthest — avoid near sensitive neighbours</td></tr>
+      <tr><td>Medium</td><td class="n" style="text-align:left;">~177–218 µm</td><td class="n">general use, noticeable drift in wind</td></tr>
+      <tr><td>Coarse</td><td class="n" style="text-align:left;">~218–349 µm</td><td class="n">common herbicide setting</td></tr>
+      <tr><td>Very Coarse</td><td class="n" style="text-align:left;">~349–428 µm</td><td class="n">CP-11TT at 5°, 40–70 psi — low drift</td></tr>
+      <tr><td>Extremely Coarse</td><td class="n" style="text-align:left;">~428–622 µm</td><td class="n">CP-11TT at 5°, low pressure — very low drift</td></tr>
+      <tr><td>Ultra Coarse</td><td class="n" style="text-align:left;">over ~622 µm</td><td class="n">minimal drift, coverage starts to suffer</td></tr>
+    </table>
+  </div>
+
+  <div class="verdict" style="margin-top:24px;">
+    <div class="vh">Why a whole field claim must be compared with the affected strip</div>
+    <p>Deposit past a fence does not spread out evenly across the neighbour's field — it
+    <strong>collapses</strong>. The heavy droplets, which carry nearly all the chemical, land within
+    the swath or a few metres past it. Only the light fraction keeps going, and it is a small
+    fraction carrying a tiny share of the load.</p>
+    <p>Run the model below and watch the numbers: with a Very Coarse setting at 3 m, the deposit at
+    the fence is high, at 25 m it is already under one percent of the applied rate, and by 100 m it
+    is a few hundredths of a percent. A 100 ha field with a 1 km shared boundary is
+    <strong>a kilometre deep</strong>. For the far corner to take a dose that marks a crop, the
+    deposit a kilometre out would have to be within a hundredfold of the deposit at the fence. It
+    is not — it is thousands of times lower.</p>
+    <p>Push the wind slider up as far as it goes. Even at speeds nobody would legally or safely
+    spray in, the strip that reaches a damaging dose is measured in <strong>tens of metres</strong>,
+    not kilometres. Drift from a boundary pass affects a strip along the fence, and it always leaves
+    a gradient — heavy at the line, fading fast. A field that is uniformly affected right to the far
+    corner was not done by droplet drift from a boundary pass: that pattern points at something else,
+    such as a temperature inversion carrying a concentrated fine cloud, or vapour movement of a
+    volatile herbicide after it has landed.</p>
+  </div>
+</section>
+
+<!-- ============ PLAN VIEW ============ -->
+<section>
+  <div class="sec-head"><h2>Plan view</h2><span class="tag">Boundary close-up · adaptive 5–10 m grid</span></div>
+  <p class="sec-note">
+    A close-up of the final pass and shared boundary. The view automatically zooms to the first metres
+    of the neighbour’s field, making a narrow drift strip visible even when the wind is mainly along
+    the flight line and only turbulence carries a small fraction across.
+  </p>
+
+  <div class="presets" id="presets"></div>
+
+  <div class="plan-shell">
+    <canvas id="plan" width="1120" height="620"></canvas>
+    <div class="plan-badge" id="planBadge">Wind from S · 12 km/h</div>
+    <div class="playbar">
+      <button class="btn on" id="playBtn">Pause flight</button>
+      <button class="btn" id="clearBtn">Clear droplets</button>
+      <span class="mono" style="font-size:11px;color:var(--ink-3);letter-spacing:.1em;text-transform:uppercase;">Drag the wind rose below to change direction</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTROLS + RESULT ============ -->
+<section>
+  <div class="sec-head"><h2>Conditions and result</h2><span class="tag">Everything here is editable</span></div>
+
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <p class="panel-title">Wind</p>
+        <div class="rose-row">
+          <svg class="rose" id="rose" viewBox="0 0 200 200" tabindex="0" role="slider"
+               aria-label="Wind direction, degrees the wind is coming from"
+               aria-valuemin="0" aria-valuemax="359" aria-valuenow="180"></svg>
+          <div class="rose-read">
+            <div class="big" id="dirRead">180°</div>
+            <div class="sub" id="dirName">from the South</div>
+            <div class="sub" style="margin-top:10px;color:var(--ink-3);">Crosswind toward<br>neighbour: <span id="crossRead" style="color:var(--spray-dk);font-weight:700;">0.0 km/h</span></div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:20px;">
+          <label>Wind speed <span class="val" id="spdVal">12 km/h</span></label>
+          <input type="range" id="spd" min="0" max="60" step="1" value="12">
+          <p class="hint">Measured at 2 m. The legal and practical spraying window is about 5–15 km/h.
+          Anything over 20 km/h you should not be spraying herbicide next to a neighbour.</p>
+        </div>
+        <div class="field">
+          <label>Delta T <span class="val" id="dtVal">5</span></label>
+          <input type="range" id="dt" min="1" max="14" step="0.5" value="5">
+          <p class="hint">Dry bulb minus wet bulb. Sets how fast droplets shrink in flight.
+          2–8 is the good window; above 10 fine droplets evaporate down and travel much further.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="panel-title">Aircraft &amp; boom</p>
+        <div class="field">
+          <label>Release height above crop <span class="val" id="hgtVal">3.0 m</span></label>
+          <input type="range" id="hgt" min="1" max="12" step="0.1" value="3">
+        </div>
+        <div class="field">
+          <label>Boom pressure <span class="val" id="psiVal">60 psi</span></label>
+          <input type="range" id="psi" min="15" max="90" step="1" value="60">
+          <p class="hint">CP-11TT working range. Higher pressure gives finer droplets and more drift.</p>
+        </div>
+        <div class="field">
+          <label for="spectrumMode">Droplet-size source</label>
+          <select id="spectrumMode">
+            <option value="nozzle" selected>Calculate from CP-11TT setup</option>
+            <option value="custom">Use my own droplet microns</option>
+          </select>
+        </div>
+        <div class="field" id="customMicronField" style="display:none;">
+          <div class="mode-row">
+            <div>
+              <label for="customVmd">Custom median droplet diameter (VMD)</label>
+              <input type="number" id="customVmd" min="40" max="1200" step="5" value="400">
+            </div>
+            <div class="val" id="customClass" style="padding-bottom:9px;">Very Coarse</div>
+          </div>
+          <p class="hint">Enter the measured or selected VMD in microns (µm). The model still includes a realistic smaller-droplet tail around that median.</p>
+        </div>
+        <div class="field">
+          <label for="defl">Nozzle deflection angle</label>
+          <select id="defl">
+            <option value="5" selected>5° — coarsest, standard for herbicide</option>
+            <option value="10">10°</option>
+            <option value="15">15°</option>
+            <option value="30">30° — finer, more coverage, more drift</option>
+            <option value="55">55° — fine, not for herbicide near neighbours</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Airspeed <span class="val" id="tasVal">130 mph</span></label>
+          <input type="range" id="tas" min="90" max="180" step="1" value="130">
+          <p class="hint">Nozzle charts are in mph. Faster air shears the sheet finer.</p>
+        </div>
+        <div class="field">
+          <label>Effective swath <span class="val" id="swVal">24 m</span></label>
+          <input type="range" id="sw" min="10" max="30" step="0.5" value="24">
+        </div>
+        <div class="field">
+          <label>Last pass centreline to fence <span class="val" id="offVal">12 m</span></label>
+          <input type="range" id="off" min="0" max="120" step="1" value="12">
+          <p class="hint" id="bufHint">Swath edge sits on the fence — no buffer.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <p class="panel-title">Neighbour's field &amp; damage threshold</p>
+        <div class="field">
+          <label>Shared boundary length <span class="val" id="blenVal">1000 m</span></label>
+          <input type="range" id="blen" min="100" max="2000" step="10" value="1000">
+        </div>
+        <div class="field">
+          <label>Neighbour's total field area <span class="val" id="fareaVal">100 ha</span></label>
+          <input type="range" id="farea" min="10" max="300" step="1" value="100">
+        </div>
+        <div class="field">
+          <label>Client's claimed affected area <span class="val" id="claimVal">100 ha</span></label>
+          <input type="range" id="claim" min="1" max="300" step="1" value="100">
+          <p class="hint">This is the area being alleged. It is compared directly with the area produced by the model.</p>
+        </div>
+        <div class="field">
+          <label>Threshold for visible crop effect <span class="val" id="thrVal">1.0 %</span></label>
+          <input type="range" id="thr" min="0.2" max="10" step="0.1" value="1">
+          <p class="hint">
+            Percentage of the full application rate that has to land before the crop shows damage.
+            Sensitive broadleaf crops react around 1&nbsp;%; tolerant crops need far more.
+          </p>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:0;border:0;box-shadow:none;">
+        <div class="readout">
+          <div class="cell hero">
+            <span class="k">Strip affected — width</span>
+            <div class="v" id="wRes">0 <small>m</small></div>
+          </div>
+          <div class="cell hero">
+            <span class="k">Strip affected — area</span>
+            <div class="v" id="aRes">0.0 <small>ha</small></div>
+          </div>
+          <div class="cell">
+            <span class="k">Share of his field</span>
+            <div class="v" id="pRes">0.0 <small>%</small></div>
+          </div>
+          <div class="cell claim">
+            <span class="k">Amount claimed</span>
+            <div class="v" id="cRes">100 <small>ha</small></div>
+          </div>
+        </div>
+        <div class="compare">
+          <div class="line"><span>Deposit at the fence line</span><span id="d0">—</span></div>
+          <div class="line"><span>Deposit 10 m in</span><span id="d10">—</span></div>
+          <div class="line"><span>Deposit 25 m in</span><span id="d25">—</span></div>
+          <div class="line"><span>Deposit 50 m in</span><span id="d50">—</span></div>
+          <div class="line"><span>Deposit 100 m in</span><span id="d100">—</span></div>
+          <div class="line"><span>Deposit 250 m in</span><span id="d250">—</span></div>
+          <div class="line alert"><span>Deposit at the far side of his field</span><span id="dFar">—</span></div>
+        </div>
+        <div class="claim-summary">
+          <div class="eyebrow">Claim comparison</div>
+          <div class="headline" id="claimHeadline">—</div>
+          <div class="equation" id="claimEquation">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="verdictBox" class="verdict" style="margin-top:26px;">
+    <div class="vh" id="vHead">—</div>
+    <p id="vBody">—</p>
+    <div class="vgrid">
+      <div><span class="k">Reaches the threshold to</span><div class="v" id="vEdge">—</div></div>
+      <div><span class="k">Deepest strip at any wind up to 150 km/h</span><div class="v" id="vMax">—</div></div>
+      <div><span class="k">Wind needed to cover the whole field</span><div class="v" id="vNeed">—</div></div>
+      <div><span class="k">Droplet class produced</span><div class="v" id="vClass">—</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DEPOSIT PROFILE ============ -->
+<section>
+  <div class="sec-head"><h2>Deposit profile</h2><span class="tag">Percentage of the applied rate, by distance</span></div>
+  <p class="sec-note">
+    This is the whole argument in one picture. Deposit does not spread evenly across a field —
+    it collapses within the first few tens of metres. The strip at the top mimics a
+    water-sensitive spray card laid out across the neighbour's field: heavily stained at the fence,
+    clean well before the middle.
+  </p>
+  <div class="chart-shell">
+    <p class="stain-cap">Simulated spray cards laid across the neighbour's field</p>
+    <canvas id="stain" width="1080" height="70"></canvas>
+    <canvas id="chart" width="1080" height="380"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--spray)"></i>Deposit curve</span>
+      <span><i style="background:var(--alert)"></i>Damage threshold</span>
+      <span><i style="background:var(--stain)"></i>Droplet stain density</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TO SCALE ============ -->
+<section>
+  <div class="sec-head"><h2>The same numbers, to scale</h2><span class="tag">Whole field, drawn true</span></div>
+  <p class="sec-note">
+    The claim covers the field outlined in red. The model says the herbicide reached the
+    shaded strip. Both are drawn at the same scale on the same drawing.
+  </p>
+  <div class="plan-shell">
+    <canvas id="overview" width="1120" height="520"></canvas>
+    <div class="playbar">
+      <button class="btn alert on" id="claimBtn">Hide the claimed area</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APPLICATION RECORD ============ -->
+<section class="model-hidden">
+  <div class="sec-head"><h2>Application record</h2><span class="tag">Edit these to match your job sheet</span></div>
+  <div class="cols">
+    <div class="panel">
+      <p class="panel-title">Aircraft, boom &amp; spray quality</p>
+      <table>
+        <tr><td>Nozzles fitted</td><td>CP-11TT flat fan</td></tr>
+        <tr><td>Nozzle deflection</td><td id="tDefl">5°</td></tr>
+        <tr><td>Boom pressure</td><td id="tPsi">60 psi (4.1 bar)</td></tr>
+        <tr><td>Airspeed</td><td id="tTas">130 mph (209 km/h)</td></tr>
+        <tr><td>Effective swath</td><td id="tSw">24 m</td></tr>
+        <tr><td>Release height above crop</td><td id="tHgt">3.0 m</td></tr>
+        <tr><td>Droplet-size source</td><td id="tSource">—</td></tr>
+        <tr><td>Modelled VMD (Dv0.5)</td><td id="tVmd">—</td></tr>
+        <tr><td>Droplet class</td><td id="tSpec">—</td></tr>
+        <tr><td>Volume under 150 µm (driftable)</td><td id="tFine">—</td></tr>
+        <tr><td>Volume under 100 µm</td><td id="tFine100">—</td></tr>
+      </table>
+    </div>
+    <div class="panel">
+      <p class="panel-title">Job &amp; conditions</p>
+      <table>
+        <tr><td>Product type</td><td>Herbicide</td></tr>
+        <tr><td>Wind direction at start</td><td id="tDir">180° (from the South)</td></tr>
+        <tr><td>Wind speed</td><td id="tSpd">12 km/h</td></tr>
+        <tr><td>Crosswind toward neighbour</td><td id="tCross">0.0 km/h</td></tr>
+        <tr><td>Delta T</td><td id="tDt">5.0</td></tr>
+        <tr><td>Flight line orientation</td><td>Parallel to the shared boundary</td></tr>
+        <tr><td>Last pass to fence</td><td id="tOff">12 m</td></tr>
+        <tr><td>Buffer past the swath edge</td><td id="tBuf">0 m</td></tr>
+        <tr><td>Spray crossing the fence</td><td id="tCrossPct">—</td></tr>
+        <tr><td>Shared boundary length</td><td id="tBlen">1000 m</td></tr>
+        <tr><td>Neighbour's field</td><td id="tFarea">100 ha</td></tr>
+        <tr><td>Client's claimed affected area</td><td id="tClaim">100 ha</td></tr>
+        <tr><td>Modelled affected area</td><td id="tModelArea">—</td></tr>
+        <tr><td>Claim ÷ modelled area</td><td id="tMultiple">—</td></tr>
+      </table>
+    </div>
+  </div>
+  <p style="font-size:13px;color:var(--ink-3);margin-top:16px;font-family:var(--fm);">
+    Pressure, deflection angle, airspeed and height are the four things that set droplet size —
+    put your actual job sheet figures in before showing this to anyone.
+  </p>
+</section>
+
+<!-- ============ HOW THE MODEL WORKS ============ -->
+<section class="model-hidden">
+  <div class="sec-head"><h2>What the model is doing</h2><span class="tag">So it can be checked</span></div>
+  <div class="explain">
+    <div>
+      <h3>Droplet spectrum</h3>
+      <p>Pressure, deflection angle and airspeed give a volume median diameter, then a log-normal
+      volume distribution around it with a realistic relative span, plus a small fine tail — because
+      real nozzles always produce a few percent of fines even on the coarsest setting.</p>
+    </div>
+    <div>
+      <h3>Fall and travel</h3>
+      <p>Each droplet size is flown down from the release height using its true terminal velocity
+      (Schiller–Naumann drag, solved iteratively) through a logarithmic wind profile referenced to
+      the 2 m wind. Droplets shrink as they fall, at a rate set by Delta T, so small ones slow down
+      and travel further — the model does not flatter the operator here.</p>
+    </div>
+    <div>
+      <h3>Spreading and landing</h3>
+      <p>The swath is treated as a uniform line source of the set width. Each size class lands
+      displaced downwind and smeared by turbulence — the spread grows with travel distance. Anything
+      still airborne after five minutes is counted as a dispersed fraction and spread as a long, very
+      thin tail rather than dropped from the books.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIMITS ============ -->
+<section style="border-bottom:0;" class="model-hidden">
+  <div class="sec-head"><h2>What this page is and isn't</h2></div>
+  <div class="limits">
+    <h3>Read this before you show it to anyone</h3>
+    <ul>
+      <li>This is an illustrative model built to explain the physics. It is <strong>not</strong> AGDISP or
+      AgDRIFT, the validated models used in regulatory and expert work, and it has not been calibrated
+      against field trials.</li>
+      <li>Droplet spectra are generated from a pressure–deflection–airspeed relationship, not from
+      measured atomisation data for your specific CP-11TT orifice, setting and tank mix.</li>
+      <li>It assumes steady wind, flat ground, a neutral atmosphere and no inversion. A temperature
+      inversion changes the answer completely and is a common cause of long-distance movement.</li>
+      <li>It does not model volatilisation of the product after it lands, or vapour drift —
+      which for some herbicides matters more than droplet drift, and which can affect a much larger
+      area than droplet drift ever will.</li>
+      <li>Actual affected area is established by evidence, not simulation: the damage pattern in the
+      crop, tissue residue sampling, your job sheet, and on-site weather records for that day.</li>
+      <li>Use this to explain the concept. For the claim itself, get an independent agronomist or drift
+      specialist to assess the field, and speak to your insurer and a lawyer before you present
+      anything as a finding.</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="model-hidden">Illustrative model · not a validated drift assessment · figures depend entirely on the inputs above</footer>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   0. MATH HELPERS
+   ============================================================ */
+function erf(x){
+  const s = x < 0 ? -1 : 1; x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741,
+        a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t = 1/(1+p*x);
+  return s*(1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));
+}
+const Phi = z => 0.5*(1+erf(z/Math.SQRT2));
+
+/* Terminal velocity of a water droplet in air, Schiller-Naumann drag. */
+function terminalVelocityRaw(d_um){
+  const d = d_um*1e-6, rw = 1000, ra = 1.20, mu = 1.81e-5, g = 9.81;
+  let v = Math.sqrt(4*rw*g*d/(3*0.44*ra));
+  for (let i = 0; i < 50; i++){
+    const Re = Math.max(1e-9, ra*v*d/mu);
+    const Cd = Re < 1000 ? (24/Re)*(1 + 0.15*Math.pow(Re, 0.687)) : 0.44;
+    v = v + 0.6*(Math.sqrt(4*rw*g*d/(3*Cd*ra)) - v);
+  }
+  return v;
+}
+
+/* Lookup table so the trajectory integrator stays cheap. */
+const VT_N = 480, VT_LO = Math.log(1), VT_HI = Math.log(1600);
+const VT_TAB = new Float64Array(VT_N+1);
+for (let i = 0; i <= VT_N; i++){
+  VT_TAB[i] = terminalVelocityRaw(Math.exp(VT_LO + (VT_HI-VT_LO)*i/VT_N));
+}
+function vt(d_um){
+  if (d_um <= 1) return VT_TAB[0]*d_um*d_um;
+  if (d_um >= 1600) return VT_TAB[VT_N];
+  const f = (Math.log(d_um)-VT_LO)/(VT_HI-VT_LO)*VT_N;
+  const i = Math.floor(f), r = f - i;
+  return VT_TAB[i]*(1-r) + VT_TAB[i+1]*r;
+}
+
+/* ============================================================
+   1. STATE
+   ============================================================ */
+const S = {
+  windDir: 180,        // degrees the wind is coming FROM
+  windKmh: 12,         // km/h at 2 m reference height
+  deltaT: 5.0,         // dry bulb minus wet bulb
+  height: 3.0,         // release height above crop, m
+  psi: 60,             // boom pressure
+  defl: 5,             // nozzle deflection angle, degrees
+  tas: 130,            // airspeed, mph (nozzle charts are mph)
+  swath: 24,           // m
+  offset: 12,          // last pass centreline to fence, m
+  boundaryLen: 1000,   // m
+  fieldArea: 100,      // neighbour's total field area, ha
+  claimArea: 100,      // hectares the client says were affected
+  spectrumMode: 'nozzle',
+  customVmd: 400,      // user-entered median droplet diameter, microns
+  threshold: 1.0,      // % of applied rate
+  playing: true,
+  showClaim: true
+};
+
+const windMs = () => S.windKmh/3.6;
+function crossWindMs(){ return windMs() * -Math.sin(S.windDir*Math.PI/180); }
+function alongWindMs(){ return windMs() * -Math.cos(S.windDir*Math.PI/180); }
+
+/* Logarithmic wind profile, referenced to the 2 m measurement. */
+const Z0 = 0.04;
+const LOG_REF = Math.log(2/Z0);
+function windAt(z, u2){
+  return u2 * Math.log(Math.max(z, 0.08)/Z0) / LOG_REF;
+}
+
+function compassName(deg){
+  const n = ['North','North-East','East','South-East','South','South-West','West','North-West'];
+  return n[Math.round(((deg%360)+360)%360/45)%8];
+}
+function compassShort(deg){
+  const n = ['N','NE','E','SE','S','SW','W','NW'];
+  return n[Math.round(((deg%360)+360)%360/45)%8];
+}
+
+/* ============================================================
+   2. DROPLET SPECTRUM FROM PRESSURE / DEFLECTION / AIRSPEED
+   Reference point: CP-11TT, 5 deg, 40 psi, 130 mph  ->  VMD 480 um
+   ============================================================ */
+function volumeMedian(psi, defl, mph){
+  return 480 * Math.pow(psi/40, -0.30) * Math.pow(5/defl, 0.35) * Math.pow(130/mph, 0.55);
+}
+
+const CLASSES = [
+  [136, 'Very Fine'], [177, 'Fine'], [218, 'Medium'],
+  [349, 'Coarse'], [428, 'Very Coarse'], [622, 'Extremely Coarse'], [1e9, 'Ultra Coarse']
+];
+function dropletClass(vmd){
+  for (const [lim, name] of CLASSES) if (vmd <= lim) return name;
+  return 'Ultra Coarse';
+}
+
+const SPEC_N = 110, SPEC_LO = Math.log(5), SPEC_HI = Math.log(1600);
+
+function buildSpectrum(){
+  const V = S.spectrumMode === 'custom' ? S.customVmd : volumeMedian(S.psi, S.defl, S.tas);
+  const span = Math.min(1.8, Math.max(0.9, 1.0 + 0.40*(480/V - 1)));
+  const s = Math.asinh(span/2)/1.2816;
+  // even the coarsest real nozzle throws a few percent of fines
+  const fFine = S.spectrumMode === 'custom'
+    ? Math.min(0.22, Math.max(0.002, 0.018*Math.pow(400/Math.max(V,40), 1.35)))
+    : Math.min(0.15, Math.max(0.004,
+        0.020*Math.pow(S.psi/40, 0.6)*Math.pow(S.defl/5, 0.4)));
+  const lnV = Math.log(V), lnF = Math.log(90);
+
+  const bins = [];
+  for (let i = 0; i < SPEC_N; i++){
+    const a = Math.exp(SPEC_LO + (SPEC_HI-SPEC_LO)*i/SPEC_N);
+    const b = Math.exp(SPEC_LO + (SPEC_HI-SPEC_LO)*(i+1)/SPEC_N);
+    const main = Phi((Math.log(b)-lnV)/s) - Phi((Math.log(a)-lnV)/s);
+    const fine = Phi((Math.log(b)-lnF)/0.45) - Phi((Math.log(a)-lnF)/0.45);
+    const f = (1-fFine)*main + fFine*fine;
+    if (f > 1e-7) bins.push([Math.sqrt(a*b), f]);
+  }
+  const tot = bins.reduce((x, y) => x + y[1], 0);
+  for (const b of bins) b[1] /= tot;
+
+  const under = lim => bins.reduce((x, y) => x + (y[0] <= lim ? y[1] : 0), 0);
+  return { vmd: V, span, bins, cls: dropletClass(V), f150: under(150), f100: under(100) };
+}
+
+/* ============================================================
+   3. TRAJECTORY — fall, shrink, travel
+   ============================================================ */
+const MAX_T = 300;                 // seconds before we call it dispersed
+function landing(d0, H, u2, deltaT){
+  if (vt(d0) < 0.015) return { x: 0, lost: true };
+  const lam = 80*deltaT;           // um^2 per second, d-squared evaporation law
+  const dres = 0.18*d0;            // non-volatile residue floor
+  const dt = 0.05;
+  let z = H, x = 0, d = d0, t = 0;
+  while (z > 0 && t < MAX_T){
+    const v = vt(d);
+    if (v < 0.012 && z > 0.4) return { x, lost: true };
+    z -= v*dt;
+    x += windAt(z + 0.3, u2)*dt;
+    if (d > dres){
+      const d2 = d*d - lam*dt;
+      d = Math.max(dres, Math.sqrt(Math.max(d2, dres*dres)));
+    }
+    t += dt;
+  }
+  if (t >= MAX_T) return { x, lost: true };
+  return { x, lost: false };
+}
+
+/* ============================================================
+   4. DEPOSIT PROFILE
+   Grid runs from -220 m (inside my field) to +1600 m (into his).
+   Values are a fraction of the nominal on-target applied rate.
+   ============================================================ */
+const X_MIN = -220, X_MAX = 1600;
+const GRID_N = X_MAX - X_MIN + 1;
+
+let PROFILE = null, SPECTRUM = null;
+
+function computeProfile(opts){
+  const o = Object.assign({
+    kmh: S.windKmh, height: S.height, swath: S.swath, offset: S.offset,
+    deltaT: S.deltaT, spectrum: SPECTRUM, threshold: S.threshold,
+    boundaryLen: S.boundaryLen, fieldArea: S.fieldArea, coarse: false
+  }, opts || {});
+
+  const step = o.coarse ? 4 : 1;
+  const n = Math.floor((X_MAX - X_MIN)/step) + 1;
+  const dep = new Float64Array(n);
+
+  const dirFactor = -Math.sin(S.windDir*Math.PI/180);
+  const u2 = (o.kmh/3.6) * (o.useCross === false ? 1 : dirFactor);
+  const c = -o.offset;
+  let dispersed = 0;
+
+  for (const [d, f] of o.spectrum.bins){
+    const L = landing(d, o.height, u2, o.deltaT);
+    if (L.lost || Math.abs(L.x) > 260){ dispersed += f; continue; }
+    const sig = Math.sqrt(Math.pow(0.11*Math.abs(L.x), 2) + Math.pow(0.40*o.height, 2) + 1.0);
+    const a = c - o.swath/2 + L.x, b = c + o.swath/2 + L.x;
+    // only touch the grid this size class can actually reach
+    const i0 = Math.max(0, Math.floor((a - 5*sig - X_MIN)/step));
+    const i1 = Math.min(n-1, Math.ceil((b + 5*sig - X_MIN)/step));
+    for (let i = i0; i <= i1; i++){
+      const X = X_MIN + i*step;
+      dep[i] += f*(Phi((X-a)/sig) - Phi((X-b)/sig))/o.swath;
+    }
+  }
+
+  // Everything still airborne after five minutes: spread as a long thin tail
+  // downwind rather than quietly deleted.
+  const tail = 260 + 48*Math.abs(o.kmh);
+  const sgn = u2 >= 0 ? 1 : -1;
+  for (let i = 0; i < n; i++){
+    const X = (X_MIN + i*step)*sgn;
+    if (X > 0) dep[i] += dispersed*Math.exp(-X/tail)/tail;
+  }
+
+  // Measured deposition curves are monotone downwind of the peak; enforce that
+  // so single droplet-size classes cannot leave bumps in the tail.
+  let imax = 0;
+  for (let i = 0; i < n; i++) if (dep[i] > dep[imax]) imax = i;
+  for (let i = imax+1; i < n; i++) if (dep[i] > dep[i-1]) dep[i] = dep[i-1];
+  for (let i = imax-1; i >= 0; i--)  if (dep[i] > dep[i+1]) dep[i] = dep[i+1];
+
+  const rel = new Float64Array(n);
+  for (let i = 0; i < n; i++) rel[i] = dep[i]*o.swath;
+
+  const thr = o.threshold/100;
+  let edge = 0;
+  for (let i = 0; i < n; i++){
+    const X = X_MIN + i*step;
+    if (X < 0) continue;
+    if (rel[i] >= thr) edge = X;
+  }
+
+  let crossed = 0;
+  for (let i = 0; i < n; i++) if (X_MIN + i*step >= 0) crossed += dep[i]*step;
+
+  const fieldWidth = (o.fieldArea*10000)/o.boundaryLen;
+  const width  = Math.min(edge, fieldWidth);
+  const areaHa = (width*o.boundaryLen)/10000;
+
+  return {
+    rel, step, edge, width, areaHa, fieldWidth, dispersed, crossed,
+    pct: (areaHa/o.fieldArea)*100,
+    at: (x) => {
+      const i = Math.round((x - X_MIN)/step);
+      if (i < 0 || i >= n) return 0;
+      return rel[i]*100;
+    },
+    peak: (() => { let m = 0; for (let i = 0; i < n; i++) if (rel[i] > m) m = rel[i]; return m; })()
+  };
+}
+
+/* How deep could the strip ever get, at any wind speed up to 150 km/h? */
+function windSweep(){
+  const speeds = [5,10,15,20,25,30,40,50,65,80,100,120,150];
+  let best = 0, bestSpeed = 0, needed = null;
+  const fieldWidth = (S.fieldArea*10000)/S.boundaryLen;
+  for (const kmh of speeds){
+    const p = computeProfile({ kmh, coarse: true, useCross: false });
+    if (p.edge > best){ best = p.edge; bestSpeed = kmh; }
+    if (needed === null && p.edge >= fieldWidth) needed = kmh;
+  }
+  return { best, bestSpeed, needed, fieldWidth };
+}
+
+function fmtPct(v){
+  if (v >= 10)    return v.toFixed(0) + ' %';
+  if (v >= 1)     return v.toFixed(1) + ' %';
+  if (v >= 0.1)   return v.toFixed(2) + ' %';
+  if (v >= 0.001) return v.toFixed(3) + ' %';
+  return 'under 0.001 %';
+}
+
+/* ============================================================
+   5. HiDPI CANVAS
+   ============================================================ */
+function fit(canvas){
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || canvas.width;
+  const ratio = canvas.height/canvas.width;
+  const h = w*ratio;
+  canvas.width  = Math.round(w*dpr);
+  canvas.height = Math.round(h*dpr);
+  canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w, h };
+}
+
+/* ============================================================
+   6. PLAN VIEW — top-down, aircraft, live droplets
+   ============================================================ */
+const planCv = document.getElementById('plan');
+const planBadge = document.getElementById('planBadge');
+
+const VIEW = { xMin: -55, xMax: 75, yMin: 0, yMax: 0 };
+
+function updatePlanView(P){
+  const leftNeed = S.offset + S.swath/2 + 14;
+  VIEW.xMin = -Math.max(45, Math.min(90, leftNeed));
+  const visibleDrift = P ? Math.max(P.width, P.edge) : 0;
+  VIEW.xMax = Math.max(45, Math.min(160, visibleDrift*1.8 + 24));
+}
+let planW = 0, planH = 0, mpp = 1;
+
+let particles = [];
+let stains = [];
+let plane = { y: 0, dir: 1 };
+let lastT = 0;
+
+function planSetup(){
+  const { w, h } = fit(planCv);
+  planW = w; planH = h;
+  mpp = (VIEW.xMax - VIEW.xMin)/w;
+  const spanY = h*mpp;
+  VIEW.yMin = -spanY/2; VIEW.yMax = spanY/2;
+}
+function px(x){ return (x - VIEW.xMin)/mpp; }
+function py(y){ return planH/2 - y/mpp; }
+
+function drawPlane(ctx, cx, cy, dir){
+  const s = Math.max(0.9, 1/mpp);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(dir > 0 ? 0 : Math.PI);
+  const L = 8*s, WS = 14.5*s;
+
+  ctx.fillStyle = '#2E5C87';
+  ctx.fillRect(-WS/2, -L*0.06, WS, L*0.20);
+  ctx.beginPath();
+  ctx.moveTo(0, -L*0.55);
+  ctx.lineTo(L*0.13, -L*0.15);
+  ctx.lineTo(L*0.11, L*0.42);
+  ctx.lineTo(-L*0.11, L*0.42);
+  ctx.lineTo(-L*0.13, -L*0.15);
+  ctx.closePath();
+  ctx.fillStyle = '#062A4E'; ctx.fill();
+  ctx.fillStyle = '#2E5C87';
+  ctx.fillRect(-WS*0.20, L*0.30, WS*0.40, L*0.11);
+
+  ctx.strokeStyle = '#E08A0B'; ctx.lineWidth = Math.max(1, 1.4*s*0.2);
+  ctx.beginPath(); ctx.moveTo(-WS*0.42, L*0.16); ctx.lineTo(WS*0.42, L*0.16); ctx.stroke();
+  ctx.fillStyle = '#E08A0B';
+  for (let i = -6; i <= 6; i++){
+    ctx.beginPath();
+    ctx.arc(i*WS*0.065, L*0.16, Math.max(0.8, s*0.28), 0, 6.283);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function emitParticles(dt){
+  if (!S.playing || !SPECTRUM) return;
+  const bins = SPECTRUM.bins;
+  const n = Math.min(46, Math.round(dt*900));
+  for (let i = 0; i < n; i++){
+    let r = Math.random(), pick = bins[bins.length-1];
+    for (const b of bins){ r -= b[1]; if (r <= 0){ pick = b; break; } }
+    const d = pick[0];
+    particles.push({
+      x: -S.offset + (Math.random()-0.5)*S.swath,
+      y: plane.y - plane.dir*(Math.random()*4),
+      z: S.height*(0.85 + Math.random()*0.3),
+      d, d0: d,
+      wob: (Math.random()-0.5)*0.8
+    });
+  }
+  if (particles.length > 3000) particles.splice(0, particles.length - 3000);
+}
+
+function stepParticles(dt){
+  const uc = crossWindMs(), ua = alongWindMs();
+  const lam = 80*S.deltaT;
+  const keep = [];
+  for (const p of particles){
+    const v = vt(p.d);
+    p.z -= v*dt;
+    const f = Math.log(Math.max(p.z + 0.3, 0.08)/Z0)/LOG_REF;
+    p.x += (uc*f + p.wob*0.3)*dt;
+    p.y += ua*f*dt;
+    const dres = 0.18*p.d0;
+    if (p.d > dres) p.d = Math.max(dres, Math.sqrt(Math.max(p.d*p.d - lam*dt, dres*dres)));
+    if (p.z <= 0) stains.push({ x: p.x, y: p.y, d: p.d });
+    else if (Math.abs(p.x) < 900) keep.push(p);
+  }
+  particles = keep;
+  if (stains.length > 5200) stains.splice(0, stains.length - 5200);
+}
+
+function drawPlan(){
+  const ctx = planCv.getContext('2d');
+  const P = PROFILE;
+
+  ctx.fillStyle = '#DCE8F4';
+  ctx.fillRect(0, 0, planW, planH);
+
+  const fenceX = px(0);
+
+  ctx.fillStyle = '#D5E5F4';
+  ctx.fillRect(0, 0, fenceX, planH);
+  ctx.fillStyle = '#F1F7FC';
+  ctx.fillRect(fenceX, 0, planW - fenceX, planH);
+
+  ctx.strokeStyle = 'rgba(11,99,197,0.14)'; ctx.lineWidth = 1;
+  for (let y = 0; y < planH; y += 7){
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(fenceX, y); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(11,99,197,0.10)';
+  for (let x = fenceX; x < planW; x += 7){
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, planH); ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(6,42,78,0.09)'; ctx.lineWidth = 1;
+  const gridStep = (VIEW.xMax - VIEW.xMin) <= 150 ? 10 : 20;
+  for (let m = Math.ceil(VIEW.xMin/gridStep)*gridStep; m <= VIEW.xMax; m += gridStep){
+    ctx.beginPath(); ctx.moveTo(px(m), 0); ctx.lineTo(px(m), planH); ctx.stroke();
+  }
+  for (let m = Math.ceil(VIEW.yMin/gridStep)*gridStep; m <= VIEW.yMax; m += gridStep){
+    ctx.beginPath(); ctx.moveTo(0, py(m)); ctx.lineTo(planW, py(m)); ctx.stroke();
+  }
+
+  if (P && P.width > 0){
+    const g = ctx.createLinearGradient(fenceX, 0, px(P.width), 0);
+    g.addColorStop(0,   'rgba(224,138,11,0.45)');
+    g.addColorStop(0.5, 'rgba(224,138,11,0.22)');
+    g.addColorStop(1,   'rgba(224,138,11,0.05)');
+    ctx.fillStyle = g;
+    ctx.fillRect(fenceX, 0, Math.max(0, px(P.width) - fenceX), planH);
+    ctx.strokeStyle = 'rgba(224,138,11,0.85)';
+    ctx.setLineDash([5,4]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px(P.width), 0); ctx.lineTo(px(P.width), planH); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.fillStyle = 'rgba(224,138,11,0.13)';
+  ctx.fillRect(px(-S.offset - S.swath/2), 0, S.swath/mpp, planH);
+  ctx.strokeStyle = 'rgba(224,138,11,0.45)'; ctx.lineWidth = 1;
+  ctx.setLineDash([2,4]);
+  ctx.beginPath(); ctx.moveTo(px(-S.offset - S.swath/2), 0); ctx.lineTo(px(-S.offset - S.swath/2), planH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px(-S.offset + S.swath/2), 0); ctx.lineTo(px(-S.offset + S.swath/2), planH); ctx.stroke();
+  ctx.setLineDash([]);
+
+  for (const s of stains){
+    const sx = px(s.x), sy = py(s.y);
+    if (sx < -20 || sx > planW + 20 || sy < -20 || sy > planH + 20) continue;
+    const r = Math.max(0.7, (s.d/1000)/mpp*2.4);
+    ctx.fillStyle = s.x > 0 ? 'rgba(17,78,119,0.85)' : 'rgba(17,78,119,0.55)';
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.283); ctx.fill();
+  }
+
+  for (const p of particles){
+    const sx = px(p.x), sy = py(p.y);
+    if (sx < -20 || sx > planW + 20) continue;
+    const alpha = 0.25 + 0.55*(1 - p.z/(S.height*1.2));
+    ctx.fillStyle = 'rgba(224,138,11,' + alpha.toFixed(3) + ')';
+    const r = Math.max(0.7, (p.d/1000)/mpp*1.8);
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.283); ctx.fill();
+  }
+
+  ctx.strokeStyle = '#062A4E'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(fenceX, 0); ctx.lineTo(fenceX, planH); ctx.stroke();
+  ctx.fillStyle = '#062A4E';
+  for (let y = 6; y < planH; y += 26){ ctx.fillRect(fenceX - 3, y, 6, 3); }
+
+  drawPlane(ctx, px(-S.offset), py(plane.y), plane.dir);
+
+  ctx.font = "600 12px 'B612 Mono', monospace";
+  ctx.fillStyle = 'rgba(6,42,78,0.75)';
+  ctx.fillText('MY FIELD', 16, planH - 18);
+  ctx.fillText("NEIGHBOUR'S FIELD", fenceX + 14, planH - 18);
+  ctx.save();
+  ctx.translate(fenceX - 8, 96); ctx.rotate(-Math.PI/2);
+  ctx.fillStyle = 'rgba(6,42,78,0.55)';
+  ctx.font = "500 10px 'B612 Mono', monospace";
+  ctx.fillText('BOUNDARY', 0, 0);
+  ctx.restore();
+
+  if (P && P.width > 0){
+    ctx.fillStyle = '#A4620A';
+    ctx.font = "600 12px 'B612 Mono', monospace";
+    const lx = Math.min(planW - 150, px(P.width) + 8);
+    ctx.fillText(P.width.toFixed(0) + ' m affected', lx, 26);
+  }
+
+  drawWindArrow(ctx);
+  drawScaleBar(ctx);
+}
+
+function drawWindArrow(ctx){
+  const cx = planW - 74, cy = 74, R = 40;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.94)';
+  ctx.strokeStyle = '#C0D3E6'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, R + 10, 0, 6.283); ctx.fill(); ctx.stroke();
+
+  ctx.font = "500 9px 'B612 Mono', monospace";
+  ctx.fillStyle = '#5A7893'; ctx.textAlign = 'center';
+  ctx.fillText('N', cx, cy - R - 1);
+  ctx.fillText('S', cx, cy + R + 8);
+  ctx.fillText('W', cx - R - 3, cy + 3);
+  ctx.fillText('E', cx + R + 3, cy + 3);
+  ctx.textAlign = 'left';
+
+  const to = (S.windDir + 180)*Math.PI/180;
+  const dx = Math.sin(to), dy = -Math.cos(to);
+  const len = 8 + (Math.min(S.windKmh, 45)/45)*26;
+  ctx.strokeStyle = '#E08A0B'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - dx*len, cy - dy*len);
+  ctx.lineTo(cx + dx*len, cy + dy*len);
+  ctx.stroke();
+  ctx.fillStyle = '#E08A0B';
+  ctx.beginPath();
+  ctx.moveTo(cx + dx*(len+9), cy + dy*(len+9));
+  ctx.lineTo(cx + dx*len - dy*6, cy + dy*len + dx*6);
+  ctx.lineTo(cx + dx*len + dy*6, cy + dy*len - dx*6);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawScaleBar(ctx){
+  const span = VIEW.xMax - VIEW.xMin;
+  const m = span <= 140 ? 10 : span <= 240 ? 20 : 50;
+  const w = m/mpp, x = 16, y = planH - 40;
+  ctx.strokeStyle = 'rgba(6,42,78,0.7)'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+  ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4);
+  ctx.moveTo(x + w, y - 4); ctx.lineTo(x + w, y + 4);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(6,42,78,0.7)';
+  ctx.font = "500 10px 'B612 Mono', monospace";
+  ctx.fillText(m + ' m', x + w + 8, y + 4);
+}
+
+/* ============================================================
+   7. DEPOSIT CHART + SPRAY CARD STRIP
+   ============================================================ */
+function drawChart(){
+  const cv = document.getElementById('chart');
+  const { ctx, w, h } = fit(cv);
+  const P = PROFILE;
+  const padL = 62, padR = 16, padT = 18, padB = 40;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+
+  const xMaxView = Math.max(60, Math.min(P.fieldWidth, Math.max(P.edge*2.6, 120)));
+  const yMax = Math.max(4, Math.min(110, P.at(0)*1.35));
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#F8FBFE';
+  ctx.fillRect(padL, padT, plotW, plotH);
+  ctx.strokeStyle = '#DDE8F3'; ctx.lineWidth = 1;
+  ctx.strokeRect(padL, padT, plotW, plotH);
+
+  const X = m => padL + (m/xMaxView)*plotW;
+  const Y = v => padT + plotH - (v/yMax)*plotH;
+
+  ctx.font = "500 10px 'B612 Mono', monospace";
+  const xStep = xMaxView <= 120 ? 20 : xMaxView <= 300 ? 50 : 100;
+  for (let m = 0; m <= xMaxView; m += xStep){
+    ctx.strokeStyle = '#E4EDF6';
+    ctx.beginPath(); ctx.moveTo(X(m), padT); ctx.lineTo(X(m), padT + plotH); ctx.stroke();
+    ctx.fillStyle = '#5A7893'; ctx.textAlign = 'center';
+    ctx.fillText(m + ' m', X(m), padT + plotH + 16);
+  }
+  ctx.textAlign = 'right';
+  const yStep = yMax <= 10 ? 2 : yMax <= 30 ? 5 : 20;
+  for (let v = 0; v <= yMax; v += yStep){
+    ctx.strokeStyle = '#E4EDF6';
+    ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(padL + plotW, Y(v)); ctx.stroke();
+    ctx.fillStyle = '#5A7893';
+    ctx.fillText(v + '%', padL - 8, Y(v) + 4);
+  }
+  ctx.textAlign = 'left';
+
+  if (P.width > 0){
+    ctx.fillStyle = 'rgba(224,138,11,0.10)';
+    ctx.fillRect(padL, padT, Math.min(plotW, X(P.width) - padL), plotH);
+  }
+
+  ctx.beginPath();
+  let started = false;
+  for (let m = 0; m <= xMaxView; m += 1){
+    const v = Math.min(P.at(m), yMax);
+    const xx = X(m), yy = Y(v);
+    if (!started){ ctx.moveTo(xx, yy); started = true; } else ctx.lineTo(xx, yy);
+  }
+  ctx.strokeStyle = '#E08A0B'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.lineTo(X(xMaxView), Y(0)); ctx.lineTo(X(0), Y(0)); ctx.closePath();
+  ctx.fillStyle = 'rgba(224,138,11,0.16)'; ctx.fill();
+
+  ctx.strokeStyle = '#C5322A'; ctx.lineWidth = 1.5; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(padL, Y(S.threshold)); ctx.lineTo(padL + plotW, Y(S.threshold)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#C5322A'; ctx.font = "600 10px 'B612 Mono', monospace";
+  ctx.fillText('DAMAGE THRESHOLD ' + S.threshold.toFixed(1) + '%', padL + 8, Y(S.threshold) - 6);
+
+  if (P.width > 0 && P.width <= xMaxView){
+    ctx.strokeStyle = 'rgba(224,138,11,0.9)'; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(X(P.width), padT); ctx.lineTo(X(P.width), padT + plotH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#A4620A';
+    ctx.fillText(P.width.toFixed(0) + ' m', X(P.width) + 6, padT + 14);
+  }
+
+  ctx.fillStyle = '#5A7893'; ctx.font = "500 10px 'B612 Mono', monospace";
+  ctx.fillText('DISTANCE PAST THE FENCE, INTO THE NEIGHBOUR\u2019S FIELD', padL, h - 6);
+  ctx.save();
+  ctx.translate(14, padT + plotH/2); ctx.rotate(-Math.PI/2); ctx.textAlign = 'center';
+  ctx.fillText('DEPOSIT, % OF APPLIED RATE', 0, 0);
+  ctx.restore();
+
+  drawStainStrip(xMaxView);
+}
+
+function drawStainStrip(xMaxView){
+  const cv = document.getElementById('stain');
+  const { ctx, w, h } = fit(cv);
+  const padL = 62, padR = 16, plotW = w - padL - padR;
+  const P = PROFILE;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#F7EFC9';
+  ctx.fillRect(padL, 6, plotW, h - 12);
+
+  const cardTop = 8, cardH = h - 16;
+  for (let i = 0; i < plotW; i += 1){
+    const m = (i/plotW)*xMaxView;
+    const dens = Math.min(1, P.at(m)/100);
+    const n = Math.round(dens*26);
+    for (let k = 0; k < n; k++){
+      const r = 0.6 + Math.random()*2.2*Math.min(1, dens*3 + 0.15);
+      ctx.fillStyle = 'rgba(24,80,98,' + (0.45 + Math.random()*0.5).toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.arc(padL + i + Math.random(), cardTop + Math.random()*cardH, r, 0, 6.283);
+      ctx.fill();
+    }
+  }
+  ctx.strokeStyle = '#C0D3E6'; ctx.lineWidth = 1;
+  ctx.strokeRect(padL, 6, plotW, h - 12);
+
+  ctx.fillStyle = '#5A7893'; ctx.font = "500 9px 'B612 Mono', monospace";
+  ctx.textAlign = 'right';
+  ctx.fillText('FENCE', padL - 8, h/2 + 3);
+  ctx.textAlign = 'left';
+}
+
+/* ============================================================
+   8. TO-SCALE OVERVIEW
+   ============================================================ */
+function drawOverview(){
+  const cv = document.getElementById('overview');
+  const { ctx, w, h } = fit(cv);
+  const P = PROFILE;
+
+  ctx.fillStyle = '#DCE8F4'; ctx.fillRect(0, 0, w, h);
+
+  const fieldW = P.fieldWidth;
+  const fieldL = S.boundaryLen;
+  const pad = 74;
+  const scale = Math.min((w - pad*2.2)/fieldW, (h - pad*1.5)/fieldL);
+  const dw = fieldW*scale, dl = fieldL*scale;
+  const ox = pad + 40, oy = (h - dl)/2;
+
+  ctx.fillStyle = '#D5E5F4';
+  ctx.fillRect(Math.max(0, ox - 46), oy, 46, dl);
+  ctx.fillStyle = 'rgba(6,42,78,0.55)';
+  ctx.font = "500 9px 'B612 Mono', monospace";
+  ctx.save();
+  ctx.translate(ox - 26, oy + dl/2); ctx.rotate(-Math.PI/2); ctx.textAlign = 'center';
+  ctx.fillText('MY FIELD', 0, 3);
+  ctx.restore();
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = '#F1F7FC';
+  ctx.fillRect(ox, oy, dw, dl);
+  ctx.strokeStyle = 'rgba(11,99,197,0.14)'; ctx.lineWidth = 1;
+  for (let y = oy; y < oy + dl; y += 6){
+    ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox + dw, y); ctx.stroke();
+  }
+
+  if (S.showClaim){
+    ctx.fillStyle = 'rgba(197,50,42,0.13)';
+    const claimFrac = Math.min(1, S.claimArea/Math.max(S.fieldArea,0.001));
+    ctx.fillRect(ox, oy, dw*claimFrac, dl);
+    ctx.strokeStyle = '#C5322A'; ctx.lineWidth = 2.5;
+    ctx.setLineDash([9,5]);
+    ctx.strokeRect(ox, oy, dw*claimFrac, dl);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#C5322A';
+    ctx.font = "600 12px 'B612 Mono', monospace";
+    ctx.fillText('CLAIMED AFFECTED: ' + S.claimArea.toFixed(0) + ' ha', ox + dw + 12, oy + 16);
+  }
+
+  const sw = Math.max(1.5, P.width*scale);
+  ctx.fillStyle = 'rgba(224,138,11,0.9)';
+  ctx.fillRect(ox, oy, sw, dl);
+  ctx.strokeStyle = '#A4620A'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(ox, oy, sw, dl);
+
+  const labY = oy + dl + 30;
+  ctx.strokeStyle = '#A4620A'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(ox + sw/2, oy + dl);
+  ctx.lineTo(ox + sw/2, labY - 12);
+  ctx.lineTo(ox + sw/2 + 26, labY - 12);
+  ctx.stroke();
+  ctx.fillStyle = '#A4620A';
+  ctx.font = "600 13px 'B612 Mono', monospace";
+  ctx.fillText('AFFECTED: ' + P.areaHa.toFixed(1) + ' ha  (' + P.width.toFixed(0) + ' m wide)',
+               ox + sw/2 + 32, labY - 8);
+
+  ctx.strokeStyle = '#062A4E'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox, oy + dl); ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(6,42,78,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(ox, oy - 14); ctx.lineTo(ox + dw, oy - 14); ctx.stroke();
+  ctx.fillStyle = 'rgba(6,42,78,0.7)';
+  ctx.font = "500 10px 'B612 Mono', monospace"; ctx.textAlign = 'center';
+  ctx.fillText(fieldW.toFixed(0) + ' m across', ox + dw/2, oy - 20);
+  ctx.textAlign = 'left';
+  ctx.save();
+  ctx.translate(ox + dw + 20, oy + dl/2); ctx.rotate(Math.PI/2); ctx.textAlign = 'center';
+  ctx.fillText(fieldL.toFixed(0) + ' m along the fence', 0, 0);
+  ctx.restore();
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = '#062A4E';
+  ctx.font = "700 15px 'Saira Condensed', sans-serif";
+  const share = (P.areaHa/S.fieldArea)*100;
+  ctx.fillText(P.areaHa.toFixed(1) + ' ha of ' + S.fieldArea.toFixed(0) + ' ha  =  ' + share.toFixed(1) + '% of the field',
+               ox, oy - 40);
+}
+
+/* ============================================================
+   9. WIND ROSE
+   ============================================================ */
+const rose = document.getElementById('rose');
+
+function buildRose(){
+  const NS = 'http://www.w3.org/2000/svg';
+  rose.innerHTML = '';
+  const g = (tag, attrs) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    rose.appendChild(e); return e;
+  };
+  g('circle', { cx:100, cy:100, r:78, fill:'#E8F1FC', stroke:'#0B63C5', 'stroke-width':1.2 });
+  g('circle', { cx:100, cy:100, r:66, fill:'#FFFFFF', stroke:'#C0D3E6', 'stroke-width':1 });
+  g('circle', { cx:100, cy:100, r:40, fill:'none', stroke:'#DDE8F3', 'stroke-width':1 });
+
+  for (let a = 0; a < 360; a += 10){
+    const rad = a*Math.PI/180;
+    const isMajor = a % 30 === 0;
+    const r1 = isMajor ? 66 : 71, r2 = 78;
+    g('line', {
+      x1: 100 + Math.sin(rad)*r1, y1: 100 - Math.cos(rad)*r1,
+      x2: 100 + Math.sin(rad)*r2, y2: 100 - Math.cos(rad)*r2,
+      stroke: isMajor ? '#0B63C5' : '#9DBEDE', 'stroke-width': isMajor ? 1.8 : 1
+    });
+  }
+  for (const [t, a] of [['N',0],['E',90],['S',180],['W',270]]){
+    const rad = a*Math.PI/180;
+    const e = g('text', {
+      x: 100 + Math.sin(rad)*50, y: 100 - Math.cos(rad)*50 + 4,
+      fill:'#5A7893', 'font-size':11, 'font-family':'B612 Mono, monospace',
+      'text-anchor':'middle'
+    });
+    e.textContent = t;
+  }
+  g('rect', { x:176, y:76, width:5, height:48, fill:'#0B63C5' });
+  const nb = g('text', { x:170, y:70, fill:'#0B63C5', 'font-size':8, 'font-weight':700,
+    'font-family':'B612 Mono, monospace', 'text-anchor':'end' });
+  nb.textContent = 'NEIGHBOUR';
+
+  g('line', { id:'roseArrow', x1:100, y1:100, x2:100, y2:100, stroke:'#E08A0B', 'stroke-width':4, 'stroke-linecap':'round' });
+  g('polygon', { id:'roseHead', points:'0,0 0,0 0,0', fill:'#E08A0B' });
+  g('circle', { id:'roseHandle', cx:100, cy:100, r:7, fill:'#E08A0B', stroke:'#FFFFFF', 'stroke-width':2 });
+  updateRose();
+}
+
+function updateRose(){
+  const to = (S.windDir + 180)*Math.PI/180;
+  const dx = Math.sin(to), dy = -Math.cos(to);
+  const L = 20 + (Math.min(S.windKmh, 45)/45)*38;
+  const arrow = rose.querySelector('#roseArrow');
+  const head  = rose.querySelector('#roseHead');
+  const hand  = rose.querySelector('#roseHandle');
+  if (!arrow) return;
+  arrow.setAttribute('x1', 100 - dx*L*0.6); arrow.setAttribute('y1', 100 - dy*L*0.6);
+  arrow.setAttribute('x2', 100 + dx*L*0.7); arrow.setAttribute('y2', 100 + dy*L*0.7);
+  const tipX = 100 + dx*(L+6), tipY = 100 + dy*(L+6);
+  head.setAttribute('points',
+    tipX + ',' + tipY + ' ' +
+    (100 + dx*L*0.7 - dy*8) + ',' + (100 + dy*L*0.7 + dx*8) + ' ' +
+    (100 + dx*L*0.7 + dy*8) + ',' + (100 + dy*L*0.7 - dx*8));
+  hand.setAttribute('cx', 100 - dx*72);
+  hand.setAttribute('cy', 100 - dy*72);
+  rose.setAttribute('aria-valuenow', Math.round(S.windDir));
+}
+
+function roseFromEvent(e){
+  const r = rose.getBoundingClientRect();
+  const pt = e.touches ? e.touches[0] : e;
+  const x = pt.clientX - r.left - r.width/2;
+  const y = pt.clientY - r.top - r.height/2;
+  let deg = Math.atan2(x, -y)*180/Math.PI;
+  deg = (deg + 360) % 360;
+  S.windDir = Math.round(deg);
+  refresh();
+}
+let dragging = false;
+rose.addEventListener('pointerdown', e => { dragging = true; rose.setPointerCapture(e.pointerId); roseFromEvent(e); e.preventDefault(); });
+rose.addEventListener('pointermove', e => { if (dragging){ roseFromEvent(e); e.preventDefault(); } });
+rose.addEventListener('pointerup',   () => { dragging = false; });
+rose.addEventListener('pointercancel', () => { dragging = false; });
+rose.addEventListener('keydown', e => {
+  let d = 0;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') d = -5;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowUp')  d = 5;
+  if (!d) return;
+  S.windDir = (S.windDir + d + 360) % 360;
+  refresh(); e.preventDefault();
+});
+
+/* ============================================================
+   10. PRESETS
+   ============================================================ */
+const PRESETS = [
+  { name: 'Wind down the field', dir: 180, kmh: 11, note: 'Blowing along the boundary — nothing crosses' },
+  { name: 'Wind away from him',  dir: 90,  kmh: 13, note: 'Blowing back over my own field' },
+  { name: 'The wind shifted',    dir: 270, kmh: 13, note: 'Light crosswind onto his field' },
+  { name: 'Stronger crosswind',  dir: 270, kmh: 22, note: 'Above what you should be spraying in' },
+  { name: 'Quartering wind',     dir: 225, kmh: 15, note: 'Partly across, partly along' },
+  { name: 'Gale — nobody sprays',dir: 270, kmh: 55, note: 'Far outside any legal window' }
+];
+
+function buildPresets(){
+  const holder = document.getElementById('presets');
+  PRESETS.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = p.name;
+    b.title = p.note;
+    b.addEventListener('click', () => {
+      S.windDir = p.dir; S.windKmh = p.kmh;
+      document.getElementById('spd').value = p.kmh;
+      [...holder.children].forEach(c => c.classList.remove('on'));
+      b.classList.add('on');
+      stains = []; particles = [];
+      refresh();
+    });
+    holder.appendChild(b);
+  });
+  holder.children[0].classList.add('on');
+}
+
+/* ============================================================
+   11. BINDINGS
+   ============================================================ */
+function bindRange(id, key, fmt, elId, resetSpray){
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    S[key] = parseFloat(el.value);
+    if (resetSpray){ stains = []; particles = []; }
+    refresh();
+  });
+  return () => { document.getElementById(elId).textContent = fmt(S[key]); };
+}
+
+const updaters = [];
+updaters.push(bindRange('spd',  'windKmh',     v => v.toFixed(0) + ' km/h', 'spdVal'));
+updaters.push(bindRange('dt',   'deltaT',      v => v.toFixed(1),           'dtVal'));
+updaters.push(bindRange('hgt',  'height',      v => v.toFixed(1) + ' m',    'hgtVal', true));
+updaters.push(bindRange('psi',  'psi',         v => v.toFixed(0) + ' psi',  'psiVal', true));
+updaters.push(bindRange('tas',  'tas',         v => v.toFixed(0) + ' mph',  'tasVal', true));
+updaters.push(bindRange('sw',   'swath',       v => v.toFixed(1).replace(/\.0$/,'') + ' m', 'swVal'));
+updaters.push(bindRange('off',  'offset',      v => v.toFixed(0) + ' m',    'offVal'));
+updaters.push(bindRange('blen', 'boundaryLen', v => v.toFixed(0) + ' m',    'blenVal'));
+updaters.push(bindRange('farea','fieldArea',   v => v.toFixed(0) + ' ha',   'fareaVal'));
+updaters.push(bindRange('claim','claimArea',   v => v.toFixed(0) + ' ha',   'claimVal'));
+updaters.push(bindRange('thr',  'threshold',   v => v.toFixed(1) + ' %',    'thrVal'));
+
+document.getElementById('spectrumMode').addEventListener('change', e => {
+  S.spectrumMode = e.target.value;
+  document.getElementById('customMicronField').style.display = S.spectrumMode === 'custom' ? 'block' : 'none';
+  stains = []; particles = []; refresh();
+});
+document.getElementById('customVmd').addEventListener('input', e => {
+  S.customVmd = Math.min(1200, Math.max(40, parseFloat(e.target.value) || 40));
+  stains = []; particles = []; refresh();
+});
+document.getElementById('defl').addEventListener('change', e => {
+  S.defl = parseFloat(e.target.value); stains = []; particles = []; refresh();
+});
+document.getElementById('playBtn').addEventListener('click', e => {
+  S.playing = !S.playing;
+  e.target.textContent = S.playing ? 'Pause flight' : 'Resume flight';
+  e.target.classList.toggle('on', S.playing);
+});
+document.getElementById('clearBtn').addEventListener('click', () => { stains = []; particles = []; });
+document.getElementById('claimBtn').addEventListener('click', e => {
+  S.showClaim = !S.showClaim;
+  e.target.textContent = S.showClaim ? 'Hide the claimed area' : 'Show the claimed area';
+  e.target.classList.toggle('on', S.showClaim);
+  drawOverview();
+});
+
+/* ============================================================
+   12. VERDICT
+   ============================================================ */
+let sweepTimer = null;
+function scheduleSweep(){
+  clearTimeout(sweepTimer);
+  sweepTimer = setTimeout(() => {
+    const sw = windSweep();
+    const box  = document.getElementById('verdictBox');
+    const head = document.getElementById('vHead');
+    const body = document.getElementById('vBody');
+
+    document.getElementById('vMax').textContent = sw.best.toFixed(0) + ' m';
+    const maxHa = Math.min(sw.best, sw.fieldWidth)*S.boundaryLen/10000;
+
+    if (sw.needed === null){
+      document.getElementById('vNeed').textContent = 'None — impossible';
+      box.classList.remove('warn');
+      head.textContent = 'The whole field cannot be reached by drift from this pass';
+      const windNote = sw.bestSpeed >= 25
+        ? '<strong>' + sw.bestSpeed + '&nbsp;km/h</strong>, a wind nobody should be spraying in'
+        : '<strong>' + sw.bestSpeed + '&nbsp;km/h</strong>';
+      body.innerHTML =
+        'Holding this setup and turning the wind straight onto the boundary, the deepest the ' +
+        'deposit ever reaches the ' + S.threshold.toFixed(1) + '&nbsp;% threshold is about <strong>' +
+        sw.best.toFixed(0) + '&nbsp;m</strong> — and that is at ' + windNote + '. That is <strong>' +
+        maxHa.toFixed(1) + '&nbsp;ha</strong> of a ' + S.fieldArea.toFixed(0) +
+        '&nbsp;ha field. To reach the far side the deposit would have to hold up over <strong>' +
+        sw.fieldWidth.toFixed(0) + '&nbsp;m</strong>, and it falls away far faster than that.';
+    } else {
+      document.getElementById('vNeed').textContent = sw.needed + ' km/h';
+      box.classList.add('warn');
+      head.textContent = 'At this setup the whole field could be reached';
+      body.innerHTML =
+        'With these settings the strip reaches the far side of the field once the crosswind ' +
+        'passes about <strong>' + sw.needed + '&nbsp;km/h</strong>. Check the height, pressure and ' +
+        'deflection angle — that is normally a sign of a fine spray quality, a high release height, ' +
+        'or a very narrow field.';
+    }
+  }, 60);
+}
+
+/* ============================================================
+   13. REFRESH
+   ============================================================ */
+function refresh(){
+  updaters.forEach(u => u());
+
+  SPECTRUM = buildSpectrum();
+  PROFILE  = computeProfile();
+  const P = PROFILE;
+  updatePlanView(P);
+  planSetup();
+
+  const crossKmh = crossWindMs()*3.6;
+  document.getElementById('dirRead').textContent = Math.round(S.windDir) + '°';
+  document.getElementById('dirName').textContent = 'from the ' + compassName(S.windDir);
+  const crossLabel = Math.abs(crossKmh) <= 0.2
+    ? '0.0 km/h — along the flight line; turbulence only'
+    : crossKmh > 0
+      ? crossKmh.toFixed(1) + ' km/h — toward neighbour'
+      : Math.abs(crossKmh).toFixed(1) + ' km/h — away from neighbour';
+  document.getElementById('crossRead').textContent = crossLabel;
+  updateRose();
+
+  planBadge.textContent = 'Wind from ' + compassShort(S.windDir) + ' · ' + S.windKmh.toFixed(0) + ' km/h';
+
+  const buffer = S.offset - S.swath/2;
+  document.getElementById('bufHint').textContent = buffer > 0.5
+    ? 'Swath edge sits ' + buffer.toFixed(0) + ' m short of the fence.'
+    : buffer < -0.5
+      ? 'Swath already overlaps the fence by ' + Math.abs(buffer).toFixed(0) + ' m — that is placement, not drift.'
+      : 'Swath edge sits on the fence — no buffer.';
+
+  document.getElementById('wRes').innerHTML = P.width.toFixed(0) + ' <small>m</small>';
+  document.getElementById('aRes').innerHTML = P.areaHa.toFixed(1) + ' <small>ha</small>';
+  document.getElementById('pRes').innerHTML = P.pct.toFixed(1) + ' <small>%</small>';
+  document.getElementById('cRes').innerHTML = S.claimArea.toFixed(0) + ' <small>ha</small>';
+
+  const claimMultiple = P.areaHa > 0.005 ? S.claimArea/P.areaHa : Infinity;
+  const modelShareClaim = S.claimArea > 0 ? (P.areaHa/S.claimArea)*100 : 0;
+  document.getElementById('claimHeadline').innerHTML = P.areaHa < 0.005
+    ? 'Modelled affected area: <strong>effectively zero</strong>'
+    : 'Modelled area is <strong>' + modelShareClaim.toFixed(modelShareClaim < 1 ? 2 : 1) + '%</strong> of the claim';
+  document.getElementById('claimEquation').innerHTML =
+    S.claimArea.toFixed(1) + ' ha claimed ÷ ' + P.areaHa.toFixed(2) + ' ha modelled = <strong>' +
+    (isFinite(claimMultiple) ? claimMultiple.toFixed(claimMultiple < 10 ? 1 : 0) + '×' : 'not measurable') + '</strong>. ' +
+    'Under these inputs, the model indicates ' + P.areaHa.toFixed(2) + ' ha affected, equal to ' +
+    P.pct.toFixed(2) + '% of the neighbour’s total field.';
+
+  document.getElementById('d0').textContent   = fmtPct(P.at(0));
+  document.getElementById('d10').textContent  = fmtPct(P.at(10));
+  document.getElementById('d25').textContent  = fmtPct(P.at(25));
+  document.getElementById('d50').textContent  = fmtPct(P.at(50));
+  document.getElementById('d100').textContent = fmtPct(P.at(100));
+  document.getElementById('d250').textContent = fmtPct(P.at(250));
+  document.getElementById('dFar').textContent = fmtPct(P.at(Math.round(P.fieldWidth)));
+
+  document.getElementById('vEdge').textContent  = P.edge.toFixed(0) + ' m';
+  document.getElementById('vClass').textContent = SPECTRUM.cls;
+
+  document.getElementById('tDefl').textContent = S.defl + '°';
+  document.getElementById('tPsi').textContent  = S.psi.toFixed(0) + ' psi (' + (S.psi*0.0689476).toFixed(1) + ' bar)';
+  document.getElementById('tTas').textContent  = S.tas.toFixed(0) + ' mph (' + (S.tas*1.60934).toFixed(0) + ' km/h)';
+  document.getElementById('tSw').textContent   = S.swath.toFixed(1).replace(/\.0$/,'') + ' m';
+  document.getElementById('tHgt').textContent  = S.height.toFixed(1) + ' m';
+  document.getElementById('customClass').textContent = SPECTRUM.cls;
+  document.getElementById('tSource').textContent = S.spectrumMode === 'custom' ? 'User-entered VMD' : 'Calculated from CP-11TT setup';
+  document.getElementById('tVmd').textContent  = SPECTRUM.vmd.toFixed(0) + ' µm';
+  document.getElementById('tSpec').textContent = SPECTRUM.cls;
+  document.getElementById('tFine').textContent    = (SPECTRUM.f150*100).toFixed(1) + ' % of spray volume';
+  document.getElementById('tFine100').textContent = (SPECTRUM.f100*100).toFixed(1) + ' % of spray volume';
+
+  document.getElementById('tDir').textContent   = Math.round(S.windDir) + '° (from the ' + compassName(S.windDir) + ')';
+  document.getElementById('tSpd').textContent   = S.windKmh.toFixed(0) + ' km/h (' + windMs().toFixed(1) + ' m/s)';
+  document.getElementById('tCross').textContent = (crossKmh > 0 ? crossKmh.toFixed(1) : '0.0') + ' km/h';
+  document.getElementById('tDt').textContent    = S.deltaT.toFixed(1);
+  document.getElementById('tOff').textContent   = S.offset.toFixed(0) + ' m';
+  document.getElementById('tBuf').textContent   = buffer.toFixed(0) + ' m';
+  document.getElementById('tCrossPct').textContent = (P.crossed*100).toFixed(1) + ' % of the last pass';
+  document.getElementById('tBlen').textContent  = S.boundaryLen.toFixed(0) + ' m';
+  document.getElementById('tFarea').textContent = S.fieldArea.toFixed(0) + ' ha (' +
+    P.fieldWidth.toFixed(0) + ' m × ' + S.boundaryLen.toFixed(0) + ' m)';
+  document.getElementById('tClaim').textContent = S.claimArea.toFixed(1) + ' ha';
+  document.getElementById('tModelArea').textContent = P.areaHa.toFixed(2) + ' ha (' + P.pct.toFixed(2) + ' % of field)';
+  document.getElementById('tMultiple').textContent = P.areaHa > 0.005 ? (S.claimArea/P.areaHa).toFixed(1) + '×' : 'Not measurable';
+
+  drawChart();
+  drawOverview();
+  scheduleSweep();
+}
+
+/* ============================================================
+   14. LOOP
+   ============================================================ */
+function loop(t){
+  const dt = Math.min(0.05, (t - lastT)/1000 || 0.016);
+  lastT = t;
+
+  if (S.playing){
+    plane.y += plane.dir*62*dt;
+    if (plane.y > VIEW.yMax + 30){ plane.y = VIEW.yMax + 30; plane.dir = -1; }
+    if (plane.y < VIEW.yMin - 30){ plane.y = VIEW.yMin - 30; plane.dir = 1; }
+    emitParticles(dt);
+  }
+  stepParticles(S.playing ? dt : 0);
+  drawPlan();
+  requestAnimationFrame(loop);
+}
+
+/* ============================================================
+   15. INIT
+   ============================================================ */
+function init(){
+  planSetup();
+  buildRose();
+  buildPresets();
+  plane.y = VIEW.yMin;
+
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches){
+    S.playing = false;
+    const pb = document.getElementById('playBtn');
+    pb.textContent = 'Start flight';
+    pb.classList.remove('on');
+  }
+
+  refresh();
+  requestAnimationFrame(t => { lastT = t; loop(t); });
+
+  /* canvas labels are drawn before the webfonts arrive — redraw once they do */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => refresh());
+}
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { planSetup(); refresh(); }, 150);
+});
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+</body>
+</html>
